@@ -103,7 +103,13 @@ struct ThreeOneOSFiveApp: App {
                 appState.detectSupport()
             }
             .onChange(of: licenseManager.isAuthorized) { authorized in
-                guard authorized, !showOnboarding else { return }
+                guard authorized else { return }
+                if showOnboarding {
+                    OnboardingStore.markCompleted()
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.24)) {
+                        showOnboarding = false
+                    }
+                }
                 appState.detectSupport()
                 checkForUpdate()
             }

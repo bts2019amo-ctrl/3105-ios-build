@@ -200,8 +200,11 @@ final class LicenseManager: ObservableObject {
         let active = Self.boolValue(fields["active"])
         let expiration = Self.expirationDate(fields: fields)
 
-        // The iOS contract requires every positive signal plus status=active.
-        let accepted = success == true && valid == true && active == true && status == "active"
+        // Accept the canonical boolean contract and the compatible status-only response.
+        // An explicit false always wins, so revoked/expired keys can never enter.
+        let explicitFalse = success == false || valid == false || active == false
+        let statusPositive = status == "active" || status == "valid"
+        let accepted = !explicitFalse && (statusPositive || (success == true && valid == true && active == true))
         if !accepted {
             if status == "rate_limited" || status == "frozen" {
                 throw LicenseValidationError.server(message: responseMessage ?? Self.message(for: status))
