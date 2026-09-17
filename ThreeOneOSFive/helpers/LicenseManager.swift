@@ -5,6 +5,7 @@ import UIKit
 @MainActor
 final class LicenseManager: ObservableObject {
     @Published private(set) var isLoading = true
+    @Published private(set) var hasCompletedInitialCheck = false
     @Published private(set) var isAuthorized = false
     @Published private(set) var message: String?
     @Published private(set) var expirationDate: Date?
@@ -45,11 +46,13 @@ final class LicenseManager: ObservableObject {
         guard let key = storedKey, !key.isEmpty else {
             isAuthorized = false
             isLoading = false
+            hasCompletedInitialCheck = true
             return
         }
 
         if let expirationDate, expirationDate <= Date() {
             revoke(message: "Sua chave expirou. Informe uma nova chave iOS.")
+            hasCompletedInitialCheck = true
             return
         }
 
@@ -74,6 +77,7 @@ final class LicenseManager: ObservableObject {
             }
             isLoading = false
             refreshInFlight = false
+            hasCompletedInitialCheck = true
         }
     }
 
@@ -156,8 +160,8 @@ final class LicenseManager: ObservableObject {
     }
 
     private func validate(key: String) async throws -> ValidationResult {
-        guard key.hasPrefix("PROXY-SYSTEM-") else {
-            throw LicenseValidationError.invalidKey(message: "Chave inválida para iOS.")
+        guard key.count <= 100 else {
+            throw LicenseValidationError.invalidKey(message: "A chave deve ter no máximo 100 caracteres.")
         }
 
         var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false)!
@@ -199,6 +203,9 @@ final class LicenseManager: ObservableObject {
         // The iOS contract requires every positive signal plus status=active.
         let accepted = success == true && valid == true && active == true && status == "active"
         if !accepted {
+            if status == "rate_limited" || status == "frozen" {
+                throw LicenseValidationError.server(message: responseMessage ?? Self.message(for: status))
+            }
             throw LicenseValidationError.invalidKey(message: responseMessage ?? Self.message(for: status))
         }
         if let expiration, expiration <= Date() {

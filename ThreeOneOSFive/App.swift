@@ -35,7 +35,7 @@ struct ThreeOneOSFiveApp: App {
     var body: some Scene {
         WindowGroup {
             ZStack {
-                if licenseManager.isLoading {
+                if !licenseManager.hasCompletedInitialCheck {
                     AuthLoadingView()
                 } else if !licenseManager.isAuthorized {
                     SecureLoginView(manager: licenseManager) { key in
