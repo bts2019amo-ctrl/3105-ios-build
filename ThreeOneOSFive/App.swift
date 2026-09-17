@@ -8,6 +8,7 @@ struct ThreeOneOSFiveApp: App {
     @StateObject private var fileOperationCoordinator = FileOperationCoordinator()
     @StateObject private var patchStore = PatchProjectStore()
     @StateObject private var repositoryStore = PackageRepositoryStore()
+    @StateObject private var licenseManager = LicenseManager()
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
     @State private var showOnboarding = OnboardingStore.shouldShow()
     @State private var showAttribution = false
@@ -34,18 +35,26 @@ struct ThreeOneOSFiveApp: App {
     var body: some Scene {
         WindowGroup {
             ZStack {
-                ContentView()
-                    .environmentObject(appState)
-                    .environmentObject(patchDraftCoordinator)
-                    .environmentObject(fileOperationCoordinator)
-                    .environmentObject(patchStore)
-                    .environmentObject(repositoryStore)
-                    .environment(\.appLanguage, language)
-                    .environment(\.locale, language.locale)
-                    .opacity(showOnboarding ? 0 : 1)
-                    .allowsHitTesting(!showOnboarding)
+                if licenseManager.isLoading {
+                    AuthLoadingView()
+                } else if !licenseManager.isAuthorized {
+                    SecureLoginView(manager: licenseManager) { key in
+                        await licenseManager.activate(key: key)
+                    }
+                } else {
+                    ContentView()
+                        .environmentObject(appState)
+                        .environmentObject(patchDraftCoordinator)
+                        .environmentObject(fileOperationCoordinator)
+                        .environmentObject(patchStore)
+                        .environmentObject(repositoryStore)
+                        .environment(\.appLanguage, language)
+                        .environment(\.locale, language.locale)
+                        .opacity(showOnboarding ? 0 : 1)
+                        .allowsHitTesting(!showOnboarding)
+                }
 
-                if showOnboarding {
+                if licenseManager.isAuthorized && showOnboarding {
                     OnboardingView {
                         OnboardingStore.markCompleted()
                         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.24)) {
@@ -81,14 +90,22 @@ struct ThreeOneOSFiveApp: App {
                 )
             }
             .onAppear {
-                if !showOnboarding {
+                licenseManager.refresh(force: true)
+                if licenseManager.isAuthorized && !showOnboarding {
                     appState.detectSupport()
                     checkForUpdate()
                 }
             }
             .onChange(of: scenePhase) { phase in
-                guard phase == .active, !showOnboarding else { return }
+                guard phase == .active else { return }
+                licenseManager.refresh(force: true)
+                guard licenseManager.isAuthorized, !showOnboarding else { return }
                 appState.detectSupport()
+            }
+            .onChange(of: licenseManager.isAuthorized) { authorized in
+                guard authorized, !showOnboarding else { return }
+                appState.detectSupport()
+                checkForUpdate()
             }
             .onOpenURL { url in
                 patchDraftCoordinator.presentImport(url)
