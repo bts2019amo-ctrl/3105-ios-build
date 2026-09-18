@@ -14,6 +14,24 @@ private enum WallpaperPackagePickerPolicy {
 }
 
 struct PatchProjectsView: View {
+    private enum PatchCategory: String, CaseIterable, Identifiable {
+        case cache = "Cache"
+        case avatar = "Avatar"
+        case holograma = "Holograma"
+        case external = "External"
+
+        var id: String { rawValue }
+
+        var icon: String {
+            switch self {
+            case .cache: return "internaldrive.fill"
+            case .avatar: return "person.crop.circle.fill"
+            case .holograma: return "cube.transparent.fill"
+            case .external: return "arrow.up.right.square.fill"
+            }
+        }
+    }
+
     @Environment(\.appLanguage) private var language
     @EnvironmentObject private var draftCoordinator: PatchDraftCoordinator
     @EnvironmentObject private var store: PatchProjectStore
@@ -24,6 +42,7 @@ struct PatchProjectsView: View {
     @State private var showWallpaperImporter = false
     @State private var showCleaner = false
     @State private var searchText = ""
+    @State private var selectedCategory: PatchCategory = .cache
     @State private var wallpaperPackages: [WallpaperStagedPackage] = []
     @State private var wallpaperImportFeedback: WallpaperImportFeedback?
     @State private var wallpaperPendingDeletion: WallpaperStagedPackage?
@@ -37,6 +56,7 @@ struct PatchProjectsView: View {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let remoteItems = store.items.filter {
             store.isRemoteItem($0, from: PackageRepositoryDefaults.remoteManifestURL)
+                && category(for: $0) == selectedCategory
         }
         guard !query.isEmpty else { return remoteItems }
         return remoteItems.filter { item in
@@ -70,6 +90,44 @@ struct PatchProjectsView: View {
         }
     }
 
+    private var categoryPicker: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(PatchCategory.allCases) { category in
+                    Button {
+                        withAnimation(AppTheme.animation) { selectedCategory = category }
+                    } label: {
+                        Label(category.rawValue, systemImage: category.icon)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(selectedCategory == category ? .white : AppTheme.accent)
+                            .padding(.horizontal, 13)
+                            .padding(.vertical, 10)
+                            .background(
+                                selectedCategory == category
+                                    ? AppTheme.accent.opacity(0.72)
+                                    : AppTheme.glassBackground,
+                                in: Capsule()
+                            )
+                            .overlay(Capsule().stroke(AppTheme.accent.opacity(0.28), lineWidth: 0.7))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+        }
+        .background(.ultraThinMaterial.opacity(0.72))
+    }
+
+    private func category(for item: PatchLibraryItem) -> PatchCategory {
+        guard let origin = item.origin,
+              let rawCategory = repositoryStore.packages.first(where: {
+                  $0.sourceURL == origin.repositoryURL
+                      && $0.package.identifier == origin.packageIdentifier
+              })?.package.category else { return .cache }
+        return PatchCategory(rawValue: rawCategory) ?? .cache
+    }
+
     private var hasLocalContent: Bool {
         store.items.contains {
             store.isRemoteItem($0, from: PackageRepositoryDefaults.remoteManifestURL)
@@ -96,6 +154,7 @@ struct PatchProjectsView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                categoryPicker
                 List {
                     if !hasLocalContent && (store.isBusy || isImportingWallpapers) {
                         loadingState
