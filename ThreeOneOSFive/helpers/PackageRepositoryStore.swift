@@ -158,6 +158,7 @@ final class PackageRepositoryStore: ObservableObject {
     }
 
     func syncPublishedPatches(to patchStore: PatchProjectStore) async {
+        guard !patchStore.isPerformingPatchOperation else { return }
         guard !remoteInstallInFlight else { return }
         remoteInstallInFlight = true
         defer { remoteInstallInFlight = false }

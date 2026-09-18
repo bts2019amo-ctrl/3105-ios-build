@@ -24,6 +24,7 @@ struct PatchStoreAlert: Identifiable {
 final class PatchProjectStore: ObservableObject {
     @Published private(set) var items: [PatchLibraryItem] = []
     @Published private(set) var isBusy = false
+    @Published private(set) var isPerformingPatchOperation = false
     @Published var passwordRequest: PatchPasswordRequest?
     @Published var alert: PatchStoreAlert?
     @Published var unlockErrorKey: String?
@@ -95,6 +96,9 @@ final class PatchProjectStore: ObservableObject {
     }
 
     func applyInstalledItem(_ item: PatchLibraryItem) async {
+        guard !isPerformingPatchOperation else { return }
+        isPerformingPatchOperation = true
+        defer { isPerformingPatchOperation = false }
         await waitUntilIdle()
         guard !isBusy, let baseProject = item.project else { return }
         isBusy = true
@@ -120,6 +124,9 @@ final class PatchProjectStore: ObservableObject {
     }
 
     func restoreInstalledItem(_ item: PatchLibraryItem) async {
+        guard !isPerformingPatchOperation else { return }
+        isPerformingPatchOperation = true
+        defer { isPerformingPatchOperation = false }
         await waitUntilIdle()
         guard !isBusy, let receipt = DevicePatchService.latestReceipt(projectID: item.id) else { return }
         isBusy = true
