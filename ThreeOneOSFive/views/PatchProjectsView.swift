@@ -97,7 +97,14 @@ struct PatchProjectsView: View {
                     Button {
                         withAnimation(AppTheme.animation) { selectedCategory = category }
                     } label: {
-                        Label(category.rawValue, systemImage: category.icon)
+                        HStack(spacing: 6) {
+                            Label(category.rawValue, systemImage: category.icon)
+                            Text("\(categoryCount(category))")
+                                .font(.caption2.weight(.bold))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(.white.opacity(selectedCategory == category ? 0.2 : 0.08), in: Capsule())
+                        }
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(selectedCategory == category ? .white : AppTheme.accent)
                             .padding(.horizontal, 13)
@@ -126,6 +133,13 @@ struct PatchProjectsView: View {
                       && $0.package.identifier == origin.packageIdentifier
               })?.package.category else { return .cache }
         return PatchCategory(rawValue: rawCategory) ?? .cache
+    }
+
+    private func categoryCount(_ category: PatchCategory) -> Int {
+        store.items.filter {
+            store.isRemoteItem($0, from: PackageRepositoryDefaults.remoteManifestURL)
+                && self.category(for: $0) == category
+        }.count
     }
 
     private var hasLocalContent: Bool {
@@ -467,9 +481,20 @@ struct PatchProjectsView: View {
 
     private var loadingState: some View {
         VStack(spacing: 12) {
-            ProgressView()
+            ForEach(0..<3, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(AppTheme.glassBackground)
+                    .frame(height: 76)
+                    .overlay(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(AppTheme.accent.opacity(0.12))
+                            .frame(width: 145, height: 12)
+                            .padding(.leading, 18)
+                    }
+                    .redacted(reason: .placeholder)
+            }
             Text(language.text("installed.loading"))
-                .font(.subheadline)
+                .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -506,6 +531,7 @@ private struct RemotePatchRow: View {
     let language: AppLanguage
     @State private var isWorking = false
     @State private var isExpanded = false
+    @State private var operationStatus: String?
 
     private var receipt: PatchTransactionReceipt? {
         DevicePatchService.latestReceipt(projectID: item.id)
@@ -525,7 +551,16 @@ private struct RemotePatchRow: View {
                         InstalledContentKindBadge(kind: .patch, language: language)
                     }
                     Spacer()
-                    if isWorking { ProgressView() }
+                    if isWorking {
+                        ProgressView().tint(AppTheme.accent)
+                    } else if let operationStatus {
+                        Text(operationStatus)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(operationStatus == "Falhou" ? .red : AppTheme.accent)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(AppTheme.accent.opacity(0.12), in: Capsule())
+                    }
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
@@ -535,6 +570,11 @@ private struct RemotePatchRow: View {
 
             if isExpanded {
                 VStack(spacing: 6) {
+                    if isWorking {
+                        ProgressView()
+                            .progressViewStyle(.linear)
+                            .tint(AppTheme.accent)
+                    }
                     Toggle(isOn: Binding(
                         get: { receipt != nil },
                         set: { enabled in
@@ -575,11 +615,13 @@ private struct RemotePatchRow: View {
                 _ = try DevicePatchService.apply(project: sourceProject)
                 await MainActor.run {
                     store.reload()
+                    operationStatus = "Ativo"
                     isWorking = false
                 }
             } catch let error as PatchPackageError {
                 await MainActor.run {
                     isWorking = false
+                    operationStatus = "Falhou"
                     store.alert = PatchStoreAlert(
                         titleKey: "common.failed",
                         messageKey: error.localizationKey,
@@ -589,6 +631,7 @@ private struct RemotePatchRow: View {
             } catch {
                 await MainActor.run {
                     isWorking = false
+                    operationStatus = "Falhou"
                     store.alert = PatchStoreAlert(titleKey: "common.failed", messageKey: "patch.error.apply")
                 }
             }
@@ -601,10 +644,14 @@ private struct RemotePatchRow: View {
         Task.detached(priority: .userInitiated) {
             do {
                 try DevicePatchService.restore(receipt: receipt, allowChangedTargets: true)
-                await MainActor.run { isWorking = false }
+                await MainActor.run {
+                    operationStatus = "Restaurado"
+                    isWorking = false
+                }
             } catch let error as PatchPackageError {
                 await MainActor.run {
                     isWorking = false
+                    operationStatus = "Falhou"
                     store.alert = PatchStoreAlert(
                         titleKey: "common.failed",
                         messageKey: error.localizationKey,
@@ -614,6 +661,7 @@ private struct RemotePatchRow: View {
             } catch {
                 await MainActor.run {
                     isWorking = false
+                    operationStatus = "Falhou"
                     store.alert = PatchStoreAlert(titleKey: "common.failed", messageKey: "patch.error.restore")
                 }
             }

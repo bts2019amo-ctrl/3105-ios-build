@@ -10,6 +10,8 @@ struct SettingsView: View {
     private var developerModeEnabled = false
     @AppStorage(AppTheme.darkModeStorageKey) private var darkModeEnabled = true
     @AppStorage(AppTheme.paletteStorageKey) private var palette = AppTheme.defaultPalette
+    @AppStorage(AppTheme.customColorStorageKey) private var customColorHex = ""
+    @State private var customColor = Color.orange
 
     var body: some View {
         NavigationStack {
@@ -39,6 +41,11 @@ struct SettingsView: View {
                         Text("Rosa").tag("pink")
                     }
                     .pickerStyle(.menu)
+                    .onChange(of: palette) { _ in customColorHex = "" }
+                    ColorPicker("Escolher cor personalizada", selection: $customColor, supportsOpacity: false)
+                        .onChange(of: customColor) { color in
+                            customColorHex = color.hexValue()
+                        }
                     HStack(spacing: 12) {
                         Text("Paleta global")
                         Spacer()
@@ -50,8 +57,30 @@ struct SettingsView: View {
                                     Circle().stroke(.white, lineWidth: palette == option ? 2 : 0)
                                 }
                                 .shadow(color: paletteColor(option).opacity(0.55), radius: palette == option ? 5 : 0)
-                                .onTapGesture { palette = option }
+                                .onTapGesture {
+                                    palette = option
+                                    customColorHex = ""
+                                }
                         }
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Pré-visualização")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        HStack {
+                            Image(systemName: "sparkles")
+                            Text("Glass 26").fontWeight(.semibold)
+                            Spacer()
+                            Text("Ativo")
+                                .font(.caption.weight(.bold))
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 5)
+                                .background(.white.opacity(0.18), in: Capsule())
+                        }
+                        .foregroundStyle(.white)
+                        .padding(14)
+                        .background(AppTheme.accentGradient, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(0.2)))
                     }
                 } header: {
                     Text("Aparência")
@@ -98,10 +127,13 @@ struct SettingsView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(language.text("common.done")) { dismiss() }
                         .fontWeight(.semibold)
+                    }
                 }
             }
+            .onAppear {
+                if !customColorHex.isEmpty { customColor = Color(hex: customColorHex) }
+            }
         }
-    }
 
     private func paletteColor(_ value: String) -> Color {
         switch value {

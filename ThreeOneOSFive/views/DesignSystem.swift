@@ -1,11 +1,17 @@
 import SwiftUI
+import UIKit
 
 enum AppTheme {
     static let darkModeStorageKey = "appearance.dark_mode"
     static let paletteStorageKey = "appearance.palette"
+    static let customColorStorageKey = "appearance.custom_color"
     static let defaultPalette = "coral"
     static var accent: Color {
-        switch UserDefaults.standard.string(forKey: paletteStorageKey) ?? defaultPalette {
+        let defaults = UserDefaults.standard
+        if let hex = defaults.string(forKey: customColorStorageKey), !hex.isEmpty {
+            return Color(hex: hex)
+        }
+        switch defaults.string(forKey: paletteStorageKey) ?? defaultPalette {
         case "blue": return .cyan
         case "purple": return .purple
         case "green": return .green
@@ -29,6 +35,34 @@ enum AppTheme {
     static let contentCardPadding: CGFloat = 16
     static let glassBackground = Color(uiColor: .secondarySystemBackground).opacity(0.55)
     static let animation = Animation.spring(response: 0.28, dampingFraction: 0.82)
+
+    static var accentGradient: LinearGradient {
+        LinearGradient(
+            colors: [accent.opacity(0.95), accent.opacity(0.38)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+}
+
+extension Color {
+    init(hex: String) {
+        let value = UInt64(hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted), radix: 16) ?? 0
+        self.init(
+            red: Double((value >> 16) & 0xFF) / 255,
+            green: Double((value >> 8) & 0xFF) / 255,
+            blue: Double(value & 0xFF) / 255
+        )
+    }
+
+    func hexValue() -> String {
+        let uiColor = UIColor(self)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        uiColor.getRed(&red, green: &green, blue: &blue, alpha: nil)
+        return String(format: "%02X%02X%02X", Int(red * 255), Int(green * 255), Int(blue * 255))
+    }
 }
 
 struct AppCardBorder: View {
