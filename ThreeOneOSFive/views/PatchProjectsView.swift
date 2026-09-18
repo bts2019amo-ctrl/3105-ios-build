@@ -37,7 +37,6 @@ struct PatchProjectsView: View {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let remoteItems = store.items.filter {
             store.isRemoteItem($0, from: PackageRepositoryDefaults.remoteManifestURL)
-                && $0.origin?.isExternal == false
         }
         guard !query.isEmpty else { return remoteItems }
         return remoteItems.filter { item in
@@ -121,7 +120,10 @@ struct PatchProjectsView: View {
                     }
                 }
                 .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
+                .background(Color.clear)
             }
+            .background(Color.clear)
             .navigationTitle(language.text("tab.installed"))
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showImporter) {
@@ -422,6 +424,7 @@ private struct RemotePatchRow: View {
     let item: PatchLibraryItem
     let language: AppLanguage
     @State private var isWorking = false
+    @State private var showActions = false
 
     private var receipt: PatchTransactionReceipt? {
         DevicePatchService.latestReceipt(projectID: item.id)
@@ -429,8 +432,10 @@ private struct RemotePatchRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 12) {
-                AppRowIcon(systemName: item.isLocked ? "lock.doc.fill" : "shippingbox.fill")
+            Button {
+                withAnimation(AppTheme.animation) { showActions.toggle() }
+            } label: {
+                HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.project?.name ?? language.text("patch.locked_project"))
                         .font(.body.weight(.semibold))
@@ -440,34 +445,29 @@ private struct RemotePatchRow: View {
                 }
                 Spacer()
                 if isWorking { ProgressView() }
+                    Image(systemName: showActions ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
             }
+            .buttonStyle(.plain)
 
-            VStack(spacing: 6) {
-                Toggle(isOn: Binding(
-                    get: { receipt != nil },
-                    set: { enabled in
-                        if enabled { apply() } else { restore() }
-                    }
-                )) {
-                    Label("Aplicar patch", systemImage: "checkmark.shield.fill")
+            if showActions {
+                HStack(spacing: 10) {
+                    Button("Aplicar patch") { apply() }
+                        .buttonStyle(.borderedProminent)
+                        .tint(AppTheme.accent)
+                    Button("Restaurar original") { restore() }
+                        .buttonStyle(.bordered)
+                        .tint(AppTheme.accent)
                 }
-                .disabled(item.isLocked || isWorking)
-
-                Toggle(isOn: Binding(
-                    get: { receipt == nil },
-                    set: { enabled in
-                        if enabled { restore() } else { apply() }
-                    }
-                )) {
-                    Label("Restaurar original", systemImage: "arrow.uturn.backward.circle")
-                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
                 .disabled(item.isLocked || isWorking)
             }
-            .toggleStyle(.switch)
-            .font(.subheadline)
-            .padding(.leading, 44)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
+        .listRowBackground(AppTheme.glassBackground)
     }
 
     private func apply() {

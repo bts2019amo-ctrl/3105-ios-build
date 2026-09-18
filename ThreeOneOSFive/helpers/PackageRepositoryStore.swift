@@ -181,7 +181,7 @@ final class PackageRepositoryStore: ObservableObject {
                     repositoryName: record.sourceName,
                     repositoryURL: record.sourceURL,
                     packageIdentifier: record.package.identifier,
-                    isExternal: record.package.autoApply
+                    isExternal: false
                 )
                 guard patchStore.importPackage(
                     data: data,

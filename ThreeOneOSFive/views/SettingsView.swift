@@ -8,6 +8,8 @@ struct SettingsView: View {
     @AppStorage(FeatureVisibility.cleanerStorageKey) private var cleanerEnabled = true
     @AppStorage(FeatureVisibility.developerModeStorageKey)
     private var developerModeEnabled = false
+    @AppStorage(AppTheme.darkModeStorageKey) private var darkModeEnabled = true
+    @AppStorage(AppTheme.paletteStorageKey) private var palette = AppTheme.defaultPalette
 
     var body: some View {
         NavigationStack {
@@ -34,6 +36,20 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
+                }
+
+                Section("Aparência") {
+                    Toggle("Modo escuro", isOn: $darkModeEnabled)
+                    Picker("Cor do app", selection: $palette) {
+                        Text("Coral").tag("coral")
+                        Text("Azul").tag("blue")
+                        Text("Roxo").tag("purple")
+                        Text("Verde").tag("green")
+                        Text("Rosa").tag("pink")
+                    }
+                    .pickerStyle(.menu)
+                } footer: {
+                    Text("A cor é aplicada globalmente aos botões, seleções e destaques.")
                 }
 
                 Section {
