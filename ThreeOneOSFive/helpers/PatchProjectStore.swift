@@ -56,6 +56,20 @@ final class PatchProjectStore: ObservableObject {
         }
     }
 
+    func isRemoteItem(_ item: PatchLibraryItem, from repositoryURL: URL) -> Bool {
+        item.origin?.repositoryURL == repositoryURL
+    }
+
+    func removeNonRemoteItems(from repositoryURL: URL) {
+        let localItems = items.filter { !isRemoteItem($0, from: repositoryURL) }
+        for item in localItems {
+            try? PatchProjectLibrary.delete(item)
+        }
+        if !localItems.isEmpty {
+            reload()
+        }
+    }
+
     func waitUntilIdle() async {
         while isBusy {
             try? await Task.sleep(nanoseconds: 100_000_000)

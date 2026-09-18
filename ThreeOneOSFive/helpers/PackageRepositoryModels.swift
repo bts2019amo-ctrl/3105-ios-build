@@ -236,6 +236,9 @@ enum PackageRepositoryLimits {
 }
 
 enum PackageRepositoryDefaults {
+    static let remoteManifestURL = URL(
+        string: "https://proxypatch-kkxfn5zz.manus.space/api/patches/manifest"
+    )!
     static let catalogURL = URL(
         string: "https://proxypatch-kkxfn5zz.manus.space/api/patches/catalog"
     )!

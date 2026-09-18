@@ -35,7 +35,9 @@ struct PatchProjectsView: View {
 
     private var filteredItems: [PatchLibraryItem] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let remoteItems = store.items.filter { $0.origin != nil }
+        let remoteItems = store.items.filter {
+            store.isRemoteItem($0, from: PackageRepositoryDefaults.remoteManifestURL)
+        }
         guard !query.isEmpty else { return remoteItems }
         return remoteItems.filter { item in
             if item.packageURL.lastPathComponent.localizedCaseInsensitiveContains(query) {
@@ -69,7 +71,9 @@ struct PatchProjectsView: View {
     }
 
     private var hasLocalContent: Bool {
-        !store.items.filter { $0.origin != nil }.isEmpty
+        store.items.contains {
+            store.isRemoteItem($0, from: PackageRepositoryDefaults.remoteManifestURL)
+        }
     }
 
     private var hasSearchResults: Bool {
@@ -199,6 +203,7 @@ struct PatchProjectsView: View {
             .onAppear {
                 reloadWallpaperPackages()
                 consumeExternalImport()
+                store.removeNonRemoteItems(from: PackageRepositoryDefaults.remoteManifestURL)
                 Task {
                     await repositoryStore.syncPublishedPatches(to: store)
                 }
