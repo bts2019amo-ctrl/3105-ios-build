@@ -183,7 +183,7 @@ struct PatchProjectsView: View {
                 .background(Color.clear)
             }
             .background(Color.clear)
-            .navigationTitle(language.text("tab.installed"))
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -552,60 +552,20 @@ private struct RemotePatchRow: View {
     }
 
     private func apply() {
-        guard !isWorking, let project = item.project else { return }
+        guard !isWorking, item.project != nil else { return }
         isWorking = true
-        Task.detached(priority: .userInitiated) {
-            do {
-                let sourceProject = item.summary.schemaVersion >= 2 && item.canInspectContents
-                    ? try PatchProjectLibrary.synchronizeWorkspace(item: item)
-                    : project
-                _ = try DevicePatchService.apply(project: sourceProject)
-                await MainActor.run {
-                    store.reload()
-                    isWorking = false
-                }
-            } catch let error as PatchPackageError {
-                await MainActor.run {
-                    isWorking = false
-                    store.alert = PatchStoreAlert(
-                        titleKey: "common.failed",
-                        messageKey: error.localizationKey,
-                        messageArgument: error.localizationArgument
-                    )
-                }
-            } catch {
-                await MainActor.run {
-                    isWorking = false
-                    store.alert = PatchStoreAlert(titleKey: "common.failed", messageKey: "patch.error.apply")
-                }
-            }
+        Task { @MainActor in
+            await store.applyInstalledItem(item)
+            isWorking = false
         }
     }
 
     private func restore() {
         guard !isWorking, let receipt else { return }
         isWorking = true
-        Task.detached(priority: .userInitiated) {
-            do {
-                try DevicePatchService.restore(receipt: receipt, allowChangedTargets: true)
-                await MainActor.run {
-                    isWorking = false
-                }
-            } catch let error as PatchPackageError {
-                await MainActor.run {
-                    isWorking = false
-                    store.alert = PatchStoreAlert(
-                        titleKey: "common.failed",
-                        messageKey: error.localizationKey,
-                        messageArgument: error.localizationArgument
-                    )
-                }
-            } catch {
-                await MainActor.run {
-                    isWorking = false
-                    store.alert = PatchStoreAlert(titleKey: "common.failed", messageKey: "patch.error.restore")
-                }
-            }
+        Task { @MainActor in
+            await store.restoreInstalledItem(item)
+            isWorking = false
         }
     }
 }

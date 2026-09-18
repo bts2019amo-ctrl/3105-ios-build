@@ -95,6 +95,7 @@ final class PatchProjectStore: ObservableObject {
     }
 
     func applyInstalledItem(_ item: PatchLibraryItem) async {
+        await waitUntilIdle()
         guard !isBusy, let baseProject = item.project else { return }
         isBusy = true
         do {
@@ -119,6 +120,7 @@ final class PatchProjectStore: ObservableObject {
     }
 
     func restoreInstalledItem(_ item: PatchLibraryItem) async {
+        await waitUntilIdle()
         guard !isBusy, let receipt = DevicePatchService.latestReceipt(projectID: item.id) else { return }
         isBusy = true
         do {
