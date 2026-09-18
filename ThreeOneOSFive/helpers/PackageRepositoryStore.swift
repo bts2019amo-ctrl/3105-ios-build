@@ -163,7 +163,19 @@ final class PackageRepositoryStore: ObservableObject {
         defer { remoteInstallInFlight = false }
 
         await refreshAllAndWait()
-        for record in packages where record.package.kind == .patch {
+        let remotePatchRecords = packages.filter { $0.package.kind == .patch }
+        for source in sources {
+            let sourceIdentifiers = Set(
+                remotePatchRecords
+                    .filter { $0.sourceURL == source.manifestURL }
+                    .map { $0.package.identifier }
+            )
+            await patchStore.removeRemoteItemsNotIn(
+                repositoryURL: source.manifestURL,
+                packageIdentifiers: sourceIdentifiers
+            )
+        }
+        for record in remotePatchRecords {
             guard !patchStore.containsRemotePackage(
                 repositoryURL: record.sourceURL,
                 packageIdentifier: record.package.identifier

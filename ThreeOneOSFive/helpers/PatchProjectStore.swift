@@ -70,6 +70,24 @@ final class PatchProjectStore: ObservableObject {
         }
     }
 
+    func removeRemoteItemsNotIn(
+        repositoryURL: URL,
+        packageIdentifiers: Set<String>
+    ) async {
+        await waitUntilIdle()
+        let staleItems = items.filter {
+            guard let origin = $0.origin, origin.repositoryURL == repositoryURL else { return false }
+            return !packageIdentifiers.contains(origin.packageIdentifier)
+        }
+        for item in staleItems {
+            if DevicePatchService.latestReceipt(projectID: item.id) != nil {
+                await restoreInstalledItem(item)
+            }
+            try? PatchProjectLibrary.delete(item)
+        }
+        if !staleItems.isEmpty { reload() }
+    }
+
     func waitUntilIdle() async {
         while isBusy {
             try? await Task.sleep(nanoseconds: 100_000_000)

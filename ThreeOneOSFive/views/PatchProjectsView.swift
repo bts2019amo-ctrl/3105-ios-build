@@ -373,7 +373,18 @@ struct PatchProjectsView: View {
 
     @ViewBuilder
     private func itemRow(_ item: PatchLibraryItem) -> some View {
-        RemotePatchRow(store: store, item: item, language: language)
+        let remoteName = item.origin.flatMap { origin in
+            repositoryStore.packages.first {
+                $0.sourceURL == origin.repositoryURL
+                    && $0.package.identifier == origin.packageIdentifier
+            }?.package.name
+        }
+        return RemotePatchRow(
+            store: store,
+            item: item,
+            displayName: remoteName,
+            language: language
+        )
     }
 
     private var emptyState: some View {
@@ -432,6 +443,7 @@ private struct WallpaperImportFeedback: Identifiable {
 private struct RemotePatchRow: View {
     @ObservedObject var store: PatchProjectStore
     let item: PatchLibraryItem
+    let displayName: String?
     let language: AppLanguage
     @State private var isWorking = false
     @State private var showActions = false
@@ -447,7 +459,7 @@ private struct RemotePatchRow: View {
             } label: {
                 HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(item.project?.name ?? language.text("patch.locked_project"))
+                    Text(displayName ?? item.project?.name ?? language.text("patch.locked_project"))
                         .font(.body.weight(.semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
