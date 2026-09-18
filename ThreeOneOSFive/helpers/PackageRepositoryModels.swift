@@ -122,6 +122,54 @@ struct RepositoryPackage: Identifiable, Hashable {
     let sharedPassword: String?
     let autoApply: Bool = false
 
+    init(
+        identifier: String,
+        kind: RepositoryPackageKind,
+        name: String,
+        author: String,
+        version: String,
+        summary: String,
+        details: String?,
+        category: String?,
+        tags: [String],
+        publishedAt: Date?,
+        iconURL: URL?,
+        bannerURL: URL?,
+        screenshotURLs: [URL],
+        downloadURL: URL,
+        sha256: String?,
+        expectedSize: UInt64?,
+        supportedOS: [PackageOSRange],
+        changelog: String?,
+        isFeatured: Bool,
+        isPrivate: Bool,
+        sharedPassword: String?,
+        autoApply: Bool = false
+    ) {
+        self.identifier = identifier
+        self.kind = kind
+        self.name = name
+        self.author = author
+        self.version = version
+        self.summary = summary
+        self.details = details
+        self.category = category
+        self.tags = tags
+        self.publishedAt = publishedAt
+        self.iconURL = iconURL
+        self.bannerURL = bannerURL
+        self.screenshotURLs = screenshotURLs
+        self.downloadURL = downloadURL
+        self.sha256 = sha256
+        self.expectedSize = expectedSize
+        self.supportedOS = supportedOS
+        self.changelog = changelog
+        self.isFeatured = isFeatured
+        self.isPrivate = isPrivate
+        self.sharedPassword = sharedPassword
+        self.autoApply = autoApply
+    }
+
     var id: String { identifier }
 }
 
