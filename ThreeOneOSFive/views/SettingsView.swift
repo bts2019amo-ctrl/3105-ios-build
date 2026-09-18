@@ -192,7 +192,7 @@ struct SettingsView: View {
             .onAppear {
                 if !customColorHex.isEmpty { customColor = Color(hex: customColorHex) }
             }
-        })
+        )
     }
 
     private func paletteColor(_ value: String) -> Color {
