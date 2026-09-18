@@ -5,6 +5,8 @@ enum AppTheme {
     static let darkModeStorageKey = "appearance.dark_mode"
     static let paletteStorageKey = "appearance.palette"
     static let customColorStorageKey = "appearance.custom_color"
+    static let glassOpacityStorageKey = "appearance.glass_opacity"
+    static let blurStorageKey = "appearance.blur_amount"
     static let defaultPalette = "coral"
     static var accent: Color {
         let defaults = UserDefaults.standard
@@ -33,7 +35,9 @@ enum AppTheme {
     static let contentCardCornerRadius: CGFloat = 20
     static let contentCardInset: CGFloat = 16
     static let contentCardPadding: CGFloat = 16
-    static let glassBackground = Color(uiColor: .secondarySystemBackground).opacity(0.55)
+    static var glassOpacity: Double { UserDefaults.standard.object(forKey: glassOpacityStorageKey) as? Double ?? 0.55 }
+    static var blurAmount: Double { UserDefaults.standard.object(forKey: blurStorageKey) as? Double ?? 0.72 }
+    static var glassBackground: Color { Color(uiColor: .secondarySystemBackground).opacity(glassOpacity) }
     static let animation = Animation.spring(response: 0.28, dampingFraction: 0.82)
 
     static var accentGradient: LinearGradient {

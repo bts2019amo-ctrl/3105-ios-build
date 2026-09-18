@@ -12,6 +12,8 @@ struct SettingsView: View {
     @AppStorage(AppTheme.paletteStorageKey) private var palette = AppTheme.defaultPalette
     @AppStorage(AppTheme.customColorStorageKey) private var customColorHex = ""
     @State private var customColor = Color.orange
+    @AppStorage(AppTheme.glassOpacityStorageKey) private var glassOpacity = 0.55
+    @AppStorage(AppTheme.blurStorageKey) private var blurAmount = 0.72
 
     var body: some View {
         NavigationStack {
@@ -46,6 +48,24 @@ struct SettingsView: View {
                         .onChange(of: customColor) { color in
                             customColorHex = color.hexValue()
                         }
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack {
+                            Text("Transparência")
+                            Spacer()
+                            Text("\(Int(glassOpacity * 100))%")
+                        }
+                        .font(.caption)
+                        Slider(value: $glassOpacity, in: 0.25...0.9)
+                    }
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack {
+                            Text("Intensidade do blur")
+                            Spacer()
+                            Text("\(Int(blurAmount * 100))%")
+                        }
+                        .font(.caption)
+                        Slider(value: $blurAmount, in: 0.15...1.0)
+                    }
                     HStack(spacing: 12) {
                         Text("Paleta global")
                         Spacer()

@@ -48,6 +48,7 @@ struct ThreeOneOSFiveApp: App {
                         .environmentObject(fileOperationCoordinator)
                         .environmentObject(patchStore)
                         .environmentObject(repositoryStore)
+                        .environmentObject(licenseManager)
                         .environment(\.appLanguage, language)
                         .environment(\.locale, language.locale)
                         .opacity(showOnboarding ? 0 : 1)
@@ -91,6 +92,9 @@ struct ThreeOneOSFiveApp: App {
             }
             .onAppear {
                 licenseManager.refresh(force: true)
+                if !licenseManager.isAuthorized {
+                    Task { await patchStore.removeAllRemoteItems() }
+                }
                 if licenseManager.isAuthorized && !showOnboarding {
                     appState.detectSupport()
                     checkForUpdate()
@@ -103,7 +107,10 @@ struct ThreeOneOSFiveApp: App {
                 appState.detectSupport()
             }
             .onChange(of: licenseManager.isAuthorized) { authorized in
-                guard authorized else { return }
+                guard authorized else {
+                    Task { await patchStore.removeAllRemoteItems() }
+                    return
+                }
                 if showOnboarding {
                     OnboardingStore.markCompleted()
                     withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.24)) {

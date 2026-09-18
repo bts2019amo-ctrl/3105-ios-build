@@ -89,6 +89,18 @@ final class PatchProjectStore: ObservableObject {
         if !staleItems.isEmpty { reload() }
     }
 
+    func removeAllRemoteItems() async {
+        await waitUntilIdle()
+        let remoteItems = items.filter { $0.origin != nil }
+        for item in remoteItems {
+            if DevicePatchService.latestReceipt(projectID: item.id) != nil {
+                await restoreInstalledItem(item)
+            }
+            try? PatchProjectLibrary.delete(item)
+        }
+        if !remoteItems.isEmpty { reload() }
+    }
+
     func waitUntilIdle() async {
         while isBusy {
             try? await Task.sleep(nanoseconds: 100_000_000)

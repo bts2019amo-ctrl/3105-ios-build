@@ -7,6 +7,7 @@ struct ContentView: View {
     @EnvironmentObject private var patchDraftCoordinator: PatchDraftCoordinator
     @EnvironmentObject private var patchStore: PatchProjectStore
     @EnvironmentObject private var repositoryStore: PackageRepositoryStore
+    @EnvironmentObject private var licenseManager: LicenseManager
     @AppStorage(FeatureVisibility.developerModeStorageKey)
     private var developerModeEnabled = false
     @AppStorage(AppTheme.darkModeStorageKey) private var darkModeEnabled = true
@@ -66,9 +67,11 @@ struct ContentView: View {
         }
         .onAppear {
             tabNavigation.reconcileSelection(with: featureVisibility)
+            guard licenseManager.isAuthorized else { return }
             Task { await repositoryStore.syncPublishedPatches(to: patchStore) }
         }
         .onReceive(Timer.publish(every: 2, on: .main, in: .common).autoconnect()) { _ in
+            guard licenseManager.isAuthorized else { return }
             Task { await repositoryStore.syncPublishedPatches(to: patchStore) }
         }
         .sheet(isPresented: $showSettings) { SettingsView() }

@@ -123,7 +123,7 @@ struct PatchProjectsView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
         }
-        .background(.ultraThinMaterial.opacity(0.72))
+        .background(.ultraThinMaterial.opacity(AppTheme.blurAmount))
     }
 
     private func category(for item: PatchLibraryItem) -> PatchCategory {
