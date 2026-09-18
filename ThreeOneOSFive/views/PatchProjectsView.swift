@@ -505,6 +505,7 @@ private struct RemotePatchRow: View {
     let displayName: String?
     let language: AppLanguage
     @State private var isWorking = false
+    @State private var isExpanded = false
 
     private var receipt: PatchTransactionReceipt? {
         DevicePatchService.latestReceipt(projectID: item.id)
@@ -512,41 +513,53 @@ private struct RemotePatchRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(displayName ?? item.project?.name ?? language.text("patch.locked_project"))
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    InstalledContentKindBadge(kind: .patch, language: language)
-                }
-                Spacer()
-                if isWorking { ProgressView() }
-            }
-            VStack(spacing: 6) {
-                Toggle(isOn: Binding(
-                    get: { receipt != nil },
-                    set: { enabled in
-                        if enabled { apply() } else { restore() }
+            Button {
+                withAnimation(AppTheme.animation) { isExpanded.toggle() }
+            } label: {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(displayName ?? item.project?.name ?? language.text("patch.locked_project"))
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        InstalledContentKindBadge(kind: .patch, language: language)
                     }
-                )) {
-                    Label("Aplicar patch", systemImage: "checkmark.shield.fill")
+                    Spacer()
+                    if isWorking { ProgressView() }
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
                 }
-                .disabled(item.isLocked || isWorking)
+            }
+            .buttonStyle(.plain)
 
-                Toggle(isOn: Binding(
-                    get: { receipt == nil },
-                    set: { enabled in
-                        if enabled { restore() } else { apply() }
+            if isExpanded {
+                VStack(spacing: 6) {
+                    Toggle(isOn: Binding(
+                        get: { receipt != nil },
+                        set: { enabled in
+                            if enabled { apply() } else { restore() }
+                        }
+                    )) {
+                        Text("Aplicar patch")
                     }
-                )) {
-                    Label("Restaurar original", systemImage: "arrow.uturn.backward.circle")
+                    .disabled(item.isLocked || isWorking)
+
+                    Toggle(isOn: Binding(
+                        get: { receipt == nil },
+                        set: { enabled in
+                            if enabled { restore() } else { apply() }
+                        }
+                    )) {
+                        Text("Restaurar original")
+                    }
+                    .disabled(item.isLocked || isWorking)
                 }
-                .disabled(item.isLocked || isWorking)
+                .toggleStyle(.switch)
+                .font(.subheadline)
+                .padding(.leading, 44)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            .toggleStyle(.switch)
-            .font(.subheadline)
-            .padding(.leading, 44)
         }
         .padding(.vertical, 6)
     }
