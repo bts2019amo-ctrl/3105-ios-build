@@ -154,7 +154,7 @@ struct SettingsView: View {
     }
 
     private var diagnosticsSection: some View {
-        Section("Diagnóstico seguro") {
+        Section {
             LabeledContent("Sessão", value: licenseManager.isAuthorized ? "Key ativa" : "Bloqueada")
             LabeledContent("API", value: licenseManager.isAuthorized ? "Conectada" : "Aguardando key")
             LabeledContent("Sincronização", value: licenseManager.isAuthorized ? "Automática · 2s" : "Desativada")
@@ -162,6 +162,8 @@ struct SettingsView: View {
                 LabeledContent("Validade", value: expiration.formatted(date: .abbreviated, time: .shortened))
             }
             LabeledContent("Dispositivo", value: AppInfo.displayMachineName)
+        } header: {
+            Text("Diagnóstico seguro")
         } footer: {
             Text("Patches remotos só são baixados durante uma sessão autorizada.")
         }
