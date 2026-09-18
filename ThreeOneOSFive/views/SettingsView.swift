@@ -38,7 +38,7 @@ struct SettingsView: View {
                     .labelsHidden()
                 }
 
-                Section("Aparência") {
+                Section {
                     Toggle("Modo escuro", isOn: $darkModeEnabled)
                     Picker("Cor do app", selection: $palette) {
                         Text("Coral").tag("coral")
@@ -48,6 +48,8 @@ struct SettingsView: View {
                         Text("Rosa").tag("pink")
                     }
                     .pickerStyle(.menu)
+                } header: {
+                    Text("Aparência")
                 } footer: {
                     Text("A cor é aplicada globalmente aos botões, seleções e destaques.")
                 }
