@@ -21,7 +21,7 @@ struct SettingsView: View {
     @AppStorage(AppTheme.themeStyleStorageKey) private var themeStyle = "midnight"
 
     var body: some View {
-        NavigationStack {
+        AnyView(NavigationStack {
             Form {
                 Section(language.text("settings.language")) {
                     Picker(language.text("settings.language"), selection: $languageCode) {
@@ -192,7 +192,8 @@ struct SettingsView: View {
             .onAppear {
                 if !customColorHex.isEmpty { customColor = Color(hex: customColorHex) }
             }
-        }
+        })
+    }
 
     private func paletteColor(_ value: String) -> Color {
         switch value {
