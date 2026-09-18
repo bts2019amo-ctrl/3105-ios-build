@@ -120,7 +120,7 @@ struct RepositoryPackage: Identifiable, Hashable {
     let isFeatured: Bool
     let isPrivate: Bool
     let sharedPassword: String?
-    let autoApply: Bool = false
+    let autoApply: Bool
 
     init(
         identifier: String,
