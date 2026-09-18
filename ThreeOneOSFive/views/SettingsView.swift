@@ -39,7 +39,12 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Toggle("Modo escuro", isOn: $darkModeEnabled)
+                    Toggle(isOn: $darkModeEnabled) {
+                        Label(
+                            darkModeEnabled ? "Modo dark ativado" : "Modo claro ativado",
+                            systemImage: darkModeEnabled ? "moon.fill" : "sun.max.fill"
+                        )
+                    }
                     Picker("Cor do app", selection: $palette) {
                         Text("Coral").tag("coral")
                         Text("Azul").tag("blue")
@@ -48,6 +53,20 @@ struct SettingsView: View {
                         Text("Rosa").tag("pink")
                     }
                     .pickerStyle(.menu)
+                    HStack(spacing: 12) {
+                        Text("Paleta global")
+                        Spacer()
+                        ForEach(["coral", "blue", "purple", "green", "pink"], id: \.self) { option in
+                            Circle()
+                                .fill(paletteColor(option))
+                                .frame(width: 25, height: 25)
+                                .overlay {
+                                    Circle().stroke(.white, lineWidth: palette == option ? 2 : 0)
+                                }
+                                .shadow(color: paletteColor(option).opacity(0.55), radius: palette == option ? 5 : 0)
+                                .onTapGesture { palette = option }
+                        }
+                    }
                 } header: {
                     Text("Aparência")
                 } footer: {
@@ -170,6 +189,16 @@ struct SettingsView: View {
                         .fontWeight(.semibold)
                 }
             }
+        }
+    }
+
+    private func paletteColor(_ value: String) -> Color {
+        switch value {
+        case "blue": return .cyan
+        case "purple": return .purple
+        case "green": return .green
+        case "pink": return .pink
+        default: return Color(red: 1.00, green: 0.50, blue: 0.28)
         }
     }
 
