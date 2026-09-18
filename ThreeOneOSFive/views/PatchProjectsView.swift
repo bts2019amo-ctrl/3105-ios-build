@@ -505,7 +505,6 @@ private struct RemotePatchRow: View {
     let displayName: String?
     let language: AppLanguage
     @State private var isWorking = false
-    @State private var showActions = false
 
     private var receipt: PatchTransactionReceipt? {
         DevicePatchService.latestReceipt(projectID: item.id)
@@ -513,10 +512,7 @@ private struct RemotePatchRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Button {
-                withAnimation(AppTheme.animation) { showActions.toggle() }
-            } label: {
-                HStack(spacing: 12) {
+            HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(displayName ?? item.project?.name ?? language.text("patch.locked_project"))
                         .font(.body.weight(.semibold))
@@ -526,46 +522,88 @@ private struct RemotePatchRow: View {
                 }
                 Spacer()
                 if isWorking { ProgressView() }
-                    Image(systemName: showActions ? "chevron.up" : "chevron.down")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
             }
-            .buttonStyle(.plain)
-
-            if showActions {
-                HStack(spacing: 10) {
-                    Button("Aplicar patch") { apply() }
-                        .buttonStyle(.borderedProminent)
-                        .tint(AppTheme.accent)
-                    Button("Restaurar original") { restore() }
-                        .buttonStyle(.bordered)
-                        .tint(AppTheme.accent)
+            VStack(spacing: 6) {
+                Toggle(isOn: Binding(
+                    get: { receipt != nil },
+                    set: { enabled in
+                        if enabled { apply() } else { restore() }
+                    }
+                )) {
+                    Label("Aplicar patch", systemImage: "checkmark.shield.fill")
                 }
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .disabled(item.isLocked || isWorking)
+
+                Toggle(isOn: Binding(
+                    get: { receipt == nil },
+                    set: { enabled in
+                        if enabled { restore() } else { apply() }
+                    }
+                )) {
+                    Label("Restaurar original", systemImage: "arrow.uturn.backward.circle")
+                }
                 .disabled(item.isLocked || isWorking)
             }
+            .toggleStyle(.switch)
+            .font(.subheadline)
+            .padding(.leading, 44)
         }
-        .padding(.vertical, 10)
-        .contentShape(Rectangle())
-        .listRowBackground(AppTheme.glassBackground)
+        .padding(.vertical, 6)
     }
 
     private func apply() {
-        guard !isWorking, item.project != nil else { return }
+        guard !isWorking, let project = item.project else { return }
         isWorking = true
-        Task { @MainActor in
-            await store.applyInstalledItem(item)
-            isWorking = false
+        Task.detached(priority: .userInitiated) {
+            do {
+                let sourceProject = item.summary.schemaVersion >= 2 && item.canInspectContents
+                    ? try PatchProjectLibrary.synchronizeWorkspace(item: item)
+                    : project
+                _ = try DevicePatchService.apply(project: sourceProject)
+                await MainActor.run {
+                    store.reload()
+                    isWorking = false
+                }
+            } catch let error as PatchPackageError {
+                await MainActor.run {
+                    isWorking = false
+                    store.alert = PatchStoreAlert(
+                        titleKey: "common.failed",
+                        messageKey: error.localizationKey,
+                        messageArgument: error.localizationArgument
+                    )
+                }
+            } catch {
+                await MainActor.run {
+                    isWorking = false
+                    store.alert = PatchStoreAlert(titleKey: "common.failed", messageKey: "patch.error.apply")
+                }
+            }
         }
     }
 
     private func restore() {
         guard !isWorking, let receipt else { return }
         isWorking = true
-        Task { @MainActor in
-            await store.restoreInstalledItem(item)
-            isWorking = false
+        Task.detached(priority: .userInitiated) {
+            do {
+                try DevicePatchService.restore(receipt: receipt, allowChangedTargets: true)
+                await MainActor.run { isWorking = false }
+            } catch let error as PatchPackageError {
+                await MainActor.run {
+                    isWorking = false
+                    store.alert = PatchStoreAlert(
+                        titleKey: "common.failed",
+                        messageKey: error.localizationKey,
+                        messageArgument: error.localizationArgument
+                    )
+                }
+            } catch {
+                await MainActor.run {
+                    isWorking = false
+                    store.alert = PatchStoreAlert(titleKey: "common.failed", messageKey: "patch.error.restore")
+                }
+            }
         }
     }
 }
