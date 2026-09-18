@@ -58,6 +58,9 @@ struct LegacyRepositoryExploreView: View {
             .onAppear {
                 repositoryStore.refreshAllIfNeeded()
             }
+            .onReceive(Timer.publish(every: 15, on: .main, in: .common).autoconnect()) { _ in
+                repositoryStore.refreshAll()
+            }
             .sheet(item: $activeTool) { tool in
                 switch tool {
                 case .cleaner:
