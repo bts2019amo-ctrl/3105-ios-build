@@ -49,6 +49,19 @@ final class PatchProjectStore: ObservableObject {
         items = PatchProjectLibrary.load()
     }
 
+    func containsRemotePackage(repositoryURL: URL, packageIdentifier: String) -> Bool {
+        items.contains { item in
+            item.origin?.repositoryURL == repositoryURL
+                && item.origin?.packageIdentifier == packageIdentifier
+        }
+    }
+
+    func waitUntilIdle() async {
+        while isBusy {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+    }
+
     private func finishInitialLoad(_ loadedItems: [PatchLibraryItem]) {
         items = loadedItems
         isBusy = false

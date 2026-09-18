@@ -22,6 +22,7 @@ final class PackageRepositoryStore: ObservableObject {
     private let defaults: UserDefaults
     private var resolutionIndex: RepositoryPackageResolutionIndex
     private var refreshedThisLaunch = false
+    private var remoteInstallInFlight = false
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -153,6 +154,39 @@ final class PackageRepositoryStore: ObservableObject {
         refreshStoredSources()
         while isRefreshing {
             try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+    }
+
+    func syncPublishedPatches(to patchStore: PatchProjectStore) async {
+        guard !remoteInstallInFlight else { return }
+        remoteInstallInFlight = true
+        defer { remoteInstallInFlight = false }
+
+        await refreshAllAndWait()
+        for record in packages where record.package.kind == .patch {
+            guard !patchStore.containsRemotePackage(
+                repositoryURL: record.sourceURL,
+                packageIdentifier: record.package.identifier
+            ) else { continue }
+            do {
+                let data = try await PackageRepositoryNetworkClient.download(record.package)
+                let origin = PatchPackageOrigin(
+                    repositoryName: record.sourceName,
+                    repositoryURL: record.sourceURL,
+                    packageIdentifier: record.package.identifier
+                )
+                guard patchStore.importPackage(
+                    data: data,
+                    password: record.package.sharedPassword,
+                    origin: origin
+                ) else { continue }
+                await patchStore.waitUntilIdle()
+                patchStore.reload()
+            } catch let error as PackageRepositoryError {
+                log("repository: automatic Installed sync failed \(record.package.identifier) \(error)")
+            } catch {
+                log("repository: automatic Installed sync failed \(record.package.identifier)")
+            }
         }
     }
 

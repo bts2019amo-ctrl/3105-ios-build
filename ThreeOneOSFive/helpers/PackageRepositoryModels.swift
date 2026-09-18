@@ -237,7 +237,7 @@ enum PackageRepositoryLimits {
 
 enum PackageRepositoryDefaults {
     static let catalogURL = URL(
-        string: "https://3000-iyx5ujvnat7hcqjp6yww8-549268c0.us4.manus.computer/api/patches/catalog"
+        string: "https://proxypatch-kkxfn5zz.manus.space/api/patches/catalog"
     )!
 }
 

@@ -17,6 +17,7 @@ struct PatchProjectsView: View {
     @Environment(\.appLanguage) private var language
     @EnvironmentObject private var draftCoordinator: PatchDraftCoordinator
     @EnvironmentObject private var store: PatchProjectStore
+    @EnvironmentObject private var repositoryStore: PackageRepositoryStore
     @AppStorage(FeatureVisibility.cleanerStorageKey) private var cleanerEnabled = true
     @State private var showCreate = false
     @State private var showImporter = false
@@ -272,6 +273,9 @@ struct PatchProjectsView: View {
             .onAppear {
                 reloadWallpaperPackages()
                 consumeExternalImport()
+                Task {
+                    await repositoryStore.syncPublishedPatches(to: store)
+                }
 #if targetEnvironment(simulator)
                 if ProcessInfo.processInfo.arguments.contains(
                     "--simulate-wallpaper-detail"
@@ -282,6 +286,11 @@ struct PatchProjectsView: View {
                     }
                 }
 #endif
+            }
+            .onReceive(Timer.publish(every: 15, on: .main, in: .common).autoconnect()) { _ in
+                Task {
+                    await repositoryStore.syncPublishedPatches(to: store)
+                }
             }
             .navigationDestination(isPresented: $showSimulatedWallpaperDetail) {
                 if let package = wallpaperPackages.first {
