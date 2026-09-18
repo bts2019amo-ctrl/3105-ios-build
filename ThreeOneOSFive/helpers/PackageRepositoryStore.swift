@@ -170,6 +170,13 @@ final class PackageRepositoryStore: ObservableObject {
             ) else { continue }
             do {
                 let data = try await PackageRepositoryNetworkClient.download(record.package)
+                let summary = try PatchPackageCodec.inspect(data)
+                resolutionIndex.record(
+                    summary.packageID,
+                    sourceURL: record.sourceURL,
+                    packageIdentifier: record.package.identifier
+                )
+                persistResolutionIndex()
                 let origin = PatchPackageOrigin(
                     repositoryName: record.sourceName,
                     repositoryURL: record.sourceURL,
@@ -194,10 +201,10 @@ final class PackageRepositoryStore: ObservableObject {
         await syncPublishedPatches(to: patchStore)
         await refreshAllAndWait()
         for record in packages where record.package.kind == .patch && record.package.autoApply {
-            guard let item = patchStore.items.first(where: {
-                $0.origin?.repositoryURL == record.sourceURL
-                    && $0.origin?.packageIdentifier == record.package.identifier
-            }) else { continue }
+            guard let item = externalItem(for: record, in: patchStore) else {
+                alert = RepositoryStoreAlert(titleKey: "common.failed", messageKey: "patch.error.invalid_project")
+                continue
+            }
             await patchStore.applyInstalledItem(item)
         }
     }
@@ -205,12 +212,23 @@ final class PackageRepositoryStore: ObservableObject {
     func restoreExternalPatches(using patchStore: PatchProjectStore) async {
         await refreshAllAndWait()
         for record in packages where record.package.kind == .patch && record.package.autoApply {
-            guard let item = patchStore.items.first(where: {
-                $0.origin?.repositoryURL == record.sourceURL
-                    && $0.origin?.packageIdentifier == record.package.identifier
-            }) else { continue }
+            guard let item = externalItem(for: record, in: patchStore) else { continue }
             await patchStore.restoreInstalledItem(item)
         }
+    }
+
+    private func externalItem(
+        for record: RepositoryPackageRecord,
+        in patchStore: PatchProjectStore
+    ) -> PatchLibraryItem? {
+        if let item = patchStore.items.first(where: {
+            $0.origin?.repositoryURL == record.sourceURL
+                && $0.origin?.packageIdentifier == record.package.identifier
+        }) {
+            return item
+        }
+        guard let resolvedID = resolvedPackageID(for: record) else { return nil }
+        return patchStore.items.first { $0.id == resolvedID }
     }
 
     private func refreshStoredSources() {
