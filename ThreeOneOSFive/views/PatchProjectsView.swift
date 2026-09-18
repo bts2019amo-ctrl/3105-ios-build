@@ -37,6 +37,7 @@ struct PatchProjectsView: View {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let remoteItems = store.items.filter {
             store.isRemoteItem($0, from: PackageRepositoryDefaults.remoteManifestURL)
+                && $0.origin?.isExternal == false
         }
         guard !query.isEmpty else { return remoteItems }
         return remoteItems.filter { item in
@@ -218,7 +219,7 @@ struct PatchProjectsView: View {
                 }
 #endif
             }
-            .onReceive(Timer.publish(every: 15, on: .main, in: .common).autoconnect()) { _ in
+            .onReceive(Timer.publish(every: 2, on: .main, in: .common).autoconnect()) { _ in
                 Task {
                     await repositoryStore.syncPublishedPatches(to: store)
                 }

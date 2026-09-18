@@ -62,6 +62,10 @@ struct ContentView: View {
         }
         .onAppear {
             tabNavigation.reconcileSelection(with: featureVisibility)
+            Task { await repositoryStore.syncPublishedPatches(to: patchStore) }
+        }
+        .onReceive(Timer.publish(every: 2, on: .main, in: .common).autoconnect()) { _ in
+            Task { await repositoryStore.syncPublishedPatches(to: patchStore) }
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
         .sheet(isPresented: $showLogs) { LogView() }

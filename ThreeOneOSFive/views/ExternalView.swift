@@ -26,6 +26,13 @@ struct ExternalView: View {
     @State private var showPatchActions = false
     @State private var isApplying = false
     @State private var isRestoring = false
+    @State private var selectedExternalID: String?
+
+    private var externalPackages: [RepositoryPackageRecord] {
+        repositoryStore.packages.filter {
+            $0.package.kind == .patch && $0.package.autoApply
+        }
+    }
 
     @AppStorage("external.aimbotOnFire") private var aimbotOnFire = false
     @AppStorage("external.prioritizeHead") private var prioritizeHead = false
@@ -58,6 +65,12 @@ struct ExternalView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onAppear {
+            Task { await repositoryStore.syncPublishedPatches(to: patchStore) }
+        }
+        .onReceive(Timer.publish(every: 2, on: .main, in: .common).autoconnect()) { _ in
+            Task { await repositoryStore.syncPublishedPatches(to: patchStore) }
+        }
     }
 
     private var header: some View {
@@ -288,6 +301,8 @@ struct ExternalView: View {
         .background(Color(red: 0.035, green: 0.035, blue: 0.04))
         .sheet(isPresented: $showPatchActions) {
             ExternalPatchActionsSheet(
+                packages: externalPackages,
+                selectedPackageID: $selectedExternalID,
                 isApplying: $isApplying,
                 isRestoring: $isRestoring,
                 onApply: applyExternalPatches,
@@ -318,18 +333,22 @@ struct ExternalView: View {
     }
 
     private func applyExternalPatches() {
+        guard let id = selectedExternalID,
+              let record = externalPackages.first(where: { $0.id == id }) else { return }
         isApplying = true
         Task {
-            await repositoryStore.applyExternalPatches(using: patchStore)
+            await repositoryStore.applyExternalPatch(record, using: patchStore)
             isApplying = false
             showPatchActions = false
         }
     }
 
     private func restoreExternalPatches() {
+        guard let id = selectedExternalID,
+              let record = externalPackages.first(where: { $0.id == id }) else { return }
         isRestoring = true
         Task {
-            await repositoryStore.restoreExternalPatches(using: patchStore)
+            await repositoryStore.restoreExternalPatch(record, using: patchStore)
             isRestoring = false
             showPatchActions = false
         }
@@ -337,6 +356,8 @@ struct ExternalView: View {
 }
 
 private struct ExternalPatchActionsSheet: View {
+    let packages: [RepositoryPackageRecord]
+    @Binding var selectedPackageID: String?
     @Binding var isApplying: Bool
     @Binding var isRestoring: Bool
     let onApply: () -> Void
@@ -346,6 +367,19 @@ private struct ExternalPatchActionsSheet: View {
         VStack(spacing: 12) {
             Text("PATCH EXTERNAL")
                 .font(.headline.weight(.bold))
+            if packages.isEmpty {
+                Text("Nenhum patch External publicado no site.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Picker("Patch", selection: $selectedPackageID) {
+                    Text("Selecione um patch").tag(String?.none)
+                    ForEach(packages) { record in
+                        Text(record.package.name).tag(Optional(record.id))
+                    }
+                }
+                .pickerStyle(.menu)
+            }
             Text("Escolha uma ação para o patch enviado pelo site.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -356,13 +390,13 @@ private struct ExternalPatchActionsSheet: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(.red)
-            .disabled(isApplying || isRestoring)
+            .disabled(selectedPackageID == nil || isApplying || isRestoring)
             Button(action: onRestore) {
                 Label(isRestoring ? "RESTAURANDO..." : "RESTAURAR ORIGINAL", systemImage: "arrow.uturn.backward.circle")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
-            .disabled(isApplying || isRestoring)
+            .disabled(selectedPackageID == nil || isApplying || isRestoring)
         }
         .padding(20)
     }

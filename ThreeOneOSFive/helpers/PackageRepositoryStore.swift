@@ -180,7 +180,8 @@ final class PackageRepositoryStore: ObservableObject {
                 let origin = PatchPackageOrigin(
                     repositoryName: record.sourceName,
                     repositoryURL: record.sourceURL,
-                    packageIdentifier: record.package.identifier
+                    packageIdentifier: record.package.identifier,
+                    isExternal: record.package.autoApply
                 )
                 guard patchStore.importPackage(
                     data: data,
@@ -215,6 +216,30 @@ final class PackageRepositoryStore: ObservableObject {
             guard let item = externalItem(for: record, in: patchStore) else { continue }
             await patchStore.restoreInstalledItem(item)
         }
+    }
+
+    func applyExternalPatch(
+        _ record: RepositoryPackageRecord,
+        using patchStore: PatchProjectStore
+    ) async {
+        guard record.package.kind == .patch, record.package.autoApply else { return }
+        await syncPublishedPatches(to: patchStore)
+        await refreshAllAndWait()
+        guard let item = externalItem(for: record, in: patchStore) else {
+            alert = RepositoryStoreAlert(titleKey: "common.failed", messageKey: "patch.error.invalid_project")
+            return
+        }
+        await patchStore.applyInstalledItem(item)
+    }
+
+    func restoreExternalPatch(
+        _ record: RepositoryPackageRecord,
+        using patchStore: PatchProjectStore
+    ) async {
+        guard record.package.kind == .patch, record.package.autoApply else { return }
+        await refreshAllAndWait()
+        guard let item = externalItem(for: record, in: patchStore) else { return }
+        await patchStore.restoreInstalledItem(item)
     }
 
     private func externalItem(
