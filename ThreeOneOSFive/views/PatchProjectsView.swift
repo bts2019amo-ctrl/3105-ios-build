@@ -360,18 +360,7 @@ struct PatchProjectsView: View {
 
     @ViewBuilder
     private func itemRow(_ item: PatchLibraryItem) -> some View {
-        if item.isLocked {
-            Button { store.requestUnlock(for: item) } label: {
-                PatchProjectRow(item: item, language: language)
-            }
-            .buttonStyle(.plain)
-        } else {
-            NavigationLink {
-                PatchProjectDetailView(store: store, projectID: item.id)
-            } label: {
-                PatchProjectRow(item: item, language: language)
-            }
-        }
+        RemotePatchRow(store: store, item: item, language: language)
     }
 
     private var emptyState: some View {
@@ -425,6 +414,118 @@ private struct WallpaperImportFeedback: Identifiable {
     let id = UUID()
     let titleKey: String
     let message: String
+}
+
+private struct RemotePatchRow: View {
+    @ObservedObject var store: PatchProjectStore
+    let item: PatchLibraryItem
+    let language: AppLanguage
+    @State private var isWorking = false
+
+    private var receipt: PatchTransactionReceipt? {
+        DevicePatchService.latestReceipt(projectID: item.id)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                AppRowIcon(systemName: item.isLocked ? "lock.doc.fill" : "shippingbox.fill")
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.project?.name ?? language.text("patch.locked_project"))
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    InstalledContentKindBadge(kind: .patch, language: language)
+                }
+                Spacer()
+                if isWorking { ProgressView() }
+            }
+
+            VStack(spacing: 6) {
+                Toggle(isOn: Binding(
+                    get: { receipt != nil },
+                    set: { enabled in
+                        if enabled { apply() } else { restore() }
+                    }
+                )) {
+                    Label("Aplicar patch", systemImage: "checkmark.shield.fill")
+                }
+                .disabled(item.isLocked || isWorking)
+
+                Toggle(isOn: Binding(
+                    get: { receipt == nil },
+                    set: { enabled in
+                        if enabled { restore() } else { apply() }
+                    }
+                )) {
+                    Label("Restaurar original", systemImage: "arrow.uturn.backward.circle")
+                }
+                .disabled(item.isLocked || isWorking)
+            }
+            .toggleStyle(.switch)
+            .font(.subheadline)
+            .padding(.leading, 44)
+        }
+        .padding(.vertical, 6)
+    }
+
+    private func apply() {
+        guard !isWorking, let project = item.project else { return }
+        isWorking = true
+        Task.detached(priority: .userInitiated) {
+            do {
+                let sourceProject = item.summary.schemaVersion >= 2 && item.canInspectContents
+                    ? try PatchProjectLibrary.synchronizeWorkspace(item: item)
+                    : project
+                _ = try DevicePatchService.apply(project: sourceProject)
+                await MainActor.run {
+                    store.reload()
+                    isWorking = false
+                }
+            } catch let error as PatchPackageError {
+                await MainActor.run {
+                    isWorking = false
+                    store.alert = PatchStoreAlert(
+                        titleKey: "common.failed",
+                        messageKey: error.localizationKey,
+                        messageArgument: error.localizationArgument
+                    )
+                }
+            } catch {
+                await MainActor.run {
+                    isWorking = false
+                    store.alert = PatchStoreAlert(titleKey: "common.failed", messageKey: "patch.error.apply")
+                }
+            }
+        }
+    }
+
+    private func restore() {
+        guard !isWorking, let receipt else { return }
+        isWorking = true
+        Task.detached(priority: .userInitiated) {
+            do {
+                try DevicePatchService.restore(receipt: receipt, allowChangedTargets: true)
+                await MainActor.run {
+                    isWorking = false
+                }
+            } catch let error as PatchPackageError {
+                await MainActor.run {
+                    isWorking = false
+                    store.alert = PatchStoreAlert(
+                        titleKey: "common.failed",
+                        messageKey: error.localizationKey,
+                        messageArgument: error.localizationArgument
+                    )
+                }
+            } catch {
+                await MainActor.run {
+                    isWorking = false
+                    store.alert = PatchStoreAlert(titleKey: "common.failed", messageKey: "patch.error.restore")
+                }
+            }
+        }
+    }
 }
 
 private struct PatchProjectRow: View {
