@@ -23,7 +23,7 @@ struct ExternalView: View {
 
     @State private var selectedCategory: Category = .aim
     @State private var distance = 120.0
-    @State private var showStarted = false
+    @State private var showPatchActions = false
     @State private var isApplying = false
     @State private var isRestoring = false
 
@@ -259,13 +259,9 @@ struct ExternalView: View {
         HStack(spacing: 10) {
             Button {
                 resetAll()
-                isRestoring = true
-                Task {
-                    await repositoryStore.restoreExternalPatches(using: patchStore)
-                    isRestoring = false
-                }
+                showPatchActions = false
             } label: {
-                Label(isRestoring ? "RESTAURANDO..." : "LIMPAR DADOS", systemImage: "trash")
+                Label("LIMPAR DADOS", systemImage: "trash")
                     .font(.system(size: 11, weight: .bold, design: .rounded))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 13)
@@ -275,20 +271,14 @@ struct ExternalView: View {
             .buttonStyle(.plain)
             .disabled(isApplying || isRestoring)
             Button {
-                showStarted = true
-                isApplying = true
-                Task {
-                    await repositoryStore.applyExternalPatches(using: patchStore)
-                    isApplying = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { showStarted = false }
-                }
+                showPatchActions = true
             } label: {
-                Label(isApplying ? "APLICAR PATCH" : (showStarted ? "ATIVO" : "INICIAR"), systemImage: isApplying ? "arrow.down.circle" : (showStarted ? "checkmark" : "play.fill"))
+                Label("INICIAR", systemImage: "play.fill")
                     .font(.system(size: 11, weight: .bold, design: .rounded))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 13)
                     .foregroundStyle(.white)
-                    .background(showStarted ? Color.green : Color.red, in: RoundedRectangle(cornerRadius: 9))
+                    .background(Color.red, in: RoundedRectangle(cornerRadius: 9))
             }
             .buttonStyle(.plain)
             .disabled(isApplying || isRestoring)
@@ -296,6 +286,16 @@ struct ExternalView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .background(Color(red: 0.035, green: 0.035, blue: 0.04))
+        .sheet(isPresented: $showPatchActions) {
+            ExternalPatchActionsSheet(
+                isApplying: $isApplying,
+                isRestoring: $isRestoring,
+                onApply: applyExternalPatches,
+                onRestore: restoreExternalPatches
+            )
+            .presentationDetents([.height(250)])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     private func resetAll() {
@@ -315,7 +315,56 @@ struct ExternalView: View {
         xrayContrast = false
         fireRate = "NORMAL"
         distance = 120
-        showStarted = false
+    }
+
+    private func applyExternalPatches() {
+        isApplying = true
+        Task {
+            await repositoryStore.applyExternalPatches(using: patchStore)
+            isApplying = false
+            showPatchActions = false
+        }
+    }
+
+    private func restoreExternalPatches() {
+        isRestoring = true
+        Task {
+            await repositoryStore.restoreExternalPatches(using: patchStore)
+            isRestoring = false
+            showPatchActions = false
+        }
+    }
+}
+
+private struct ExternalPatchActionsSheet: View {
+    @Binding var isApplying: Bool
+    @Binding var isRestoring: Bool
+    let onApply: () -> Void
+    let onRestore: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text("PATCH EXTERNAL")
+                .font(.headline.weight(.bold))
+            Text("Escolha uma ação para o patch enviado pelo site.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button(action: onApply) {
+                Label(isApplying ? "APLICANDO..." : "APLICAR PATCH", systemImage: "checkmark.shield.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.red)
+            .disabled(isApplying || isRestoring)
+            Button(action: onRestore) {
+                Label(isRestoring ? "RESTAURANDO..." : "RESTAURAR ORIGINAL", systemImage: "arrow.uturn.backward.circle")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(isApplying || isRestoring)
+        }
+        .padding(20)
     }
 }
 
