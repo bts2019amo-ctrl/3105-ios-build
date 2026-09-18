@@ -4,6 +4,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.appLanguage) private var language
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
     @AppStorage(FeatureVisibility.cleanerStorageKey) private var cleanerEnabled = true
     @AppStorage(FeatureVisibility.developerModeStorageKey)
@@ -11,9 +12,13 @@ struct SettingsView: View {
     @AppStorage(AppTheme.darkModeStorageKey) private var darkModeEnabled = true
     @AppStorage(AppTheme.paletteStorageKey) private var palette = AppTheme.defaultPalette
     @AppStorage(AppTheme.customColorStorageKey) private var customColorHex = ""
+    @AppStorage(AppTheme.useCustomColorStorageKey) private var useCustomColor = false
     @State private var customColor = Color.orange
     @AppStorage(AppTheme.glassOpacityStorageKey) private var glassOpacity = 0.55
     @AppStorage(AppTheme.blurStorageKey) private var blurAmount = 0.72
+    @AppStorage(AppTheme.densityStorageKey) private var density = "normal"
+    @AppStorage(AppTheme.layoutStorageKey) private var layout = "list"
+    @AppStorage(AppTheme.themeStyleStorageKey) private var themeStyle = "midnight"
 
     var body: some View {
         NavigationStack {
@@ -35,6 +40,7 @@ struct SettingsView: View {
                             systemImage: darkModeEnabled ? "moon.fill" : "sun.max.fill"
                         )
                     }
+                    Toggle("Usar cor personalizada", isOn: $useCustomColor)
                     Picker("Cor do app", selection: $palette) {
                         Text("Coral").tag("coral")
                         Text("Azul").tag("blue")
@@ -43,8 +49,12 @@ struct SettingsView: View {
                         Text("Rosa").tag("pink")
                     }
                     .pickerStyle(.menu)
-                    .onChange(of: palette) { _ in customColorHex = "" }
-                    ColorPicker("Escolher cor personalizada", selection: $customColor, supportsOpacity: false)
+                    .onChange(of: palette) { _ in
+                        customColorHex = ""
+                        useCustomColor = false
+                    }
+                    ColorPicker("Cor personalizada", selection: $customColor, supportsOpacity: false)
+                        .disabled(!useCustomColor)
                         .onChange(of: customColor) { color in
                             customColorHex = color.hexValue()
                         }
@@ -66,6 +76,22 @@ struct SettingsView: View {
                         .font(.caption)
                         Slider(value: $blurAmount, in: 0.15...1.0)
                     }
+                    Picker("Tema visual", selection: $themeStyle) {
+                        Text("Midnight Glass").tag("midnight")
+                        Text("Aurora").tag("aurora")
+                        Text("Crystal").tag("crystal")
+                        Text("Neon Holographic").tag("neon")
+                        Text("Carbon Pro").tag("carbon")
+                    }
+                    Picker("Densidade", selection: $density) {
+                        Text("Compacta").tag("compact")
+                        Text("Normal").tag("normal")
+                        Text("Espaçada").tag("spacious")
+                    }
+                    Picker("Visual dos patches", selection: $layout) {
+                        Text("Lista").tag("list")
+                        Text("Cartões").tag("cards")
+                    }
                     HStack(spacing: 12) {
                         Text("Paleta global")
                         Spacer()
@@ -80,6 +106,7 @@ struct SettingsView: View {
                                 .onTapGesture {
                                     palette = option
                                     customColorHex = ""
+                                    useCustomColor = false
                                 }
                         }
                     }
@@ -111,6 +138,18 @@ struct SettingsView: View {
                 Section(language.text("common.device")) {
                     LabeledContent(language.text("dashboard.hardware_model"), value: AppInfo.displayMachineName)
                     LabeledContent(language.text("settings.ios_version"), value: "\(AppInfo.osVersion) (\(AppInfo.osBuild))")
+                }
+
+                Section("Diagnóstico seguro") {
+                    LabeledContent("Sessão", value: licenseManager.isAuthorized ? "Key ativa" : "Bloqueada")
+                    LabeledContent("API", value: licenseManager.isAuthorized ? "Conectada" : "Aguardando key")
+                    LabeledContent("Sincronização", value: licenseManager.isAuthorized ? "Automática · 2s" : "Desativada")
+                    if let expiration = licenseManager.expirationDate {
+                        LabeledContent("Validade", value: expiration.formatted(date: .abbreviated, time: .shortened))
+                    }
+                    LabeledContent("Dispositivo", value: AppInfo.displayMachineName)
+                } footer: {
+                    Text("Patches remotos só são baixados durante uma sessão autorizada.")
                 }
 
                 Section {

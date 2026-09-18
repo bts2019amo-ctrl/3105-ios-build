@@ -45,6 +45,7 @@ struct PatchProjectsView: View {
     @EnvironmentObject private var draftCoordinator: PatchDraftCoordinator
     @EnvironmentObject private var store: PatchProjectStore
     @EnvironmentObject private var repositoryStore: PackageRepositoryStore
+    @EnvironmentObject private var licenseManager: LicenseManager
     @AppStorage(FeatureVisibility.cleanerStorageKey) private var cleanerEnabled = true
     @State private var showCreate = false
     @State private var showImporter = false
@@ -215,6 +216,7 @@ struct PatchProjectsView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                dashboardHeader
                 categoryPicker
                 List {
                     if !hasLocalContent && (store.isBusy || isImportingWallpapers) {
@@ -507,6 +509,29 @@ struct PatchProjectsView: View {
         )
     }
 
+    private var dashboardHeader: some View {
+        HStack(spacing: 10) {
+            dashboardMetric(title: "PATCHES", value: "\(filteredItems.count)", icon: "shippingbox.fill")
+            dashboardMetric(title: "SYNC", value: "2s", icon: "arrow.triangle.2.circlepath")
+            dashboardMetric(title: "KEY", value: licenseManager.isAuthorized ? "ATIVA" : "BLOQUEADA", icon: licenseManager.isAuthorized ? "checkmark.shield.fill" : "lock.fill")
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 2)
+    }
+
+    private func dashboardMetric(title: String, value: String, icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Image(systemName: icon).foregroundStyle(AppTheme.accent)
+            Text(title).font(.caption2.weight(.bold)).tracking(0.8).foregroundStyle(.secondary)
+            Text(value).font(.caption.weight(.bold)).lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(11)
+        .background(AppTheme.glassBackground, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 15).stroke(AppTheme.accent.opacity(0.16)))
+    }
+
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "shippingbox")
@@ -579,6 +604,8 @@ private struct RemotePatchRow: View {
     @State private var isWorking = false
     @State private var isExpanded = false
     @State private var operationStatus: String?
+    @AppStorage(AppTheme.densityStorageKey) private var density = "normal"
+    @AppStorage(AppTheme.layoutStorageKey) private var layout = "list"
 
     private var receipt: PatchTransactionReceipt? {
         DevicePatchService.latestReceipt(projectID: item.id)
@@ -595,7 +622,6 @@ private struct RemotePatchRow: View {
                             .font(.body.weight(.semibold))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
-                        InstalledContentKindBadge(kind: .patch, language: language)
                     }
                     Spacer()
                     if isWorking {
@@ -648,7 +674,14 @@ private struct RemotePatchRow: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, density == "compact" ? 3 : density == "spacious" ? 11 : 6)
+        .padding(.horizontal, layout == "cards" ? 8 : 0)
+        .background(
+            layout == "cards" ? AnyShapeStyle(AppTheme.glassBackground) : AnyShapeStyle(Color.clear),
+            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+        )
+        .shadow(color: receipt != nil ? AppTheme.accent.opacity(0.24) : .clear, radius: receipt != nil ? 10 : 0)
+        .transition(.opacity.combined(with: .move(edge: .bottom)))
     }
 
     private func apply() {
@@ -728,7 +761,6 @@ private struct PatchProjectRow: View {
                     .font(.body.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
-                InstalledContentKindBadge(kind: .patch, language: language)
                 if let author = item.project?.author, !author.isEmpty {
                     Text(language.text("patch.by_author", author))
                         .font(.caption)

@@ -5,12 +5,17 @@ enum AppTheme {
     static let darkModeStorageKey = "appearance.dark_mode"
     static let paletteStorageKey = "appearance.palette"
     static let customColorStorageKey = "appearance.custom_color"
+    static let useCustomColorStorageKey = "appearance.use_custom_color"
+    static let densityStorageKey = "appearance.density"
+    static let layoutStorageKey = "appearance.layout"
+    static let themeStyleStorageKey = "appearance.theme_style"
     static let glassOpacityStorageKey = "appearance.glass_opacity"
     static let blurStorageKey = "appearance.blur_amount"
     static let defaultPalette = "coral"
     static var accent: Color {
         let defaults = UserDefaults.standard
-        if let hex = defaults.string(forKey: customColorStorageKey), !hex.isEmpty {
+        if defaults.bool(forKey: useCustomColorStorageKey),
+           let hex = defaults.string(forKey: customColorStorageKey), !hex.isEmpty {
             return Color(hex: hex)
         }
         switch defaults.string(forKey: paletteStorageKey) ?? defaultPalette {
@@ -37,6 +42,7 @@ enum AppTheme {
     static let contentCardPadding: CGFloat = 16
     static var glassOpacity: Double { UserDefaults.standard.object(forKey: glassOpacityStorageKey) as? Double ?? 0.55 }
     static var blurAmount: Double { UserDefaults.standard.object(forKey: blurStorageKey) as? Double ?? 0.72 }
+    static var density: String { UserDefaults.standard.string(forKey: densityStorageKey) ?? "normal" }
     static var glassBackground: Color { Color(uiColor: .secondarySystemBackground).opacity(glassOpacity) }
     static let animation = Animation.spring(response: 0.28, dampingFraction: 0.82)
 

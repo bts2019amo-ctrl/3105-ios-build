@@ -12,6 +12,10 @@ struct ContentView: View {
     private var developerModeEnabled = false
     @AppStorage(AppTheme.darkModeStorageKey) private var darkModeEnabled = true
     @AppStorage(AppTheme.paletteStorageKey) private var palette = AppTheme.defaultPalette
+    @AppStorage(AppTheme.useCustomColorStorageKey) private var useCustomColor = false
+    @AppStorage(AppTheme.customColorStorageKey) private var customColorHex = ""
+    @AppStorage(AppTheme.densityStorageKey) private var density = "normal"
+    @AppStorage(AppTheme.layoutStorageKey) private var layout = "list"
     @State private var tabNavigation: AppTabNavigationState
     @State private var showSettings = false
     @State private var showLogs = false
@@ -54,7 +58,7 @@ struct ContentView: View {
         }
         .tint(AppTheme.accent)
         .preferredColorScheme(darkModeEnabled ? .dark : .light)
-        .id("theme-\(darkModeEnabled)-\(palette)")
+        .id("theme-\(darkModeEnabled)-\(palette)-\(useCustomColor)-\(customColorHex)-\(density)-\(layout)")
         .imageScale(.small)
         .onChange(of: patchDraftCoordinator.request?.id) { requestID in
             if requestID != nil { tabNavigation.select(AppSection.installed.rawValue) }
