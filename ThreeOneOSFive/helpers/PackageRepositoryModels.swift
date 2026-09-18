@@ -73,6 +73,7 @@ struct PackageRepositoryPackageDocument: Decodable {
     let featured: Bool?
     let isPrivate: Bool?
     let password: String?
+    let autoApply: Bool?
 }
 
 enum RepositoryPackageKind: String, Codable, Hashable {
@@ -119,6 +120,7 @@ struct RepositoryPackage: Identifiable, Hashable {
     let isFeatured: Bool
     let isPrivate: Bool
     let sharedPassword: String?
+    let autoApply: Bool = false
 
     var id: String { identifier }
 }
@@ -443,7 +445,8 @@ enum PackageRepositoryValidator {
             changelog: trimmedOptional(package.changelog),
             isFeatured: package.featured ?? false,
             isPrivate: package.isPrivate ?? false,
-            sharedPassword: package.password
+            sharedPassword: package.password,
+            autoApply: package.autoApply ?? false
         )
     }
 

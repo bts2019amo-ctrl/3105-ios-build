@@ -76,6 +76,50 @@ final class PatchProjectStore: ObservableObject {
         }
     }
 
+    func applyInstalledItem(_ item: PatchLibraryItem) async {
+        guard !isBusy, let baseProject = item.project else { return }
+        isBusy = true
+        do {
+            let project = item.summary.schemaVersion >= 2 && item.canInspectContents
+                ? try PatchProjectLibrary.synchronizeWorkspace(item: item)
+                : baseProject
+            try await Task.detached(priority: .userInitiated) {
+                _ = try DevicePatchService.apply(project: project)
+            }.value
+            reload()
+            alert = PatchStoreAlert(titleKey: "common.done", messageKey: "patch.applied_message")
+        } catch let error as PatchPackageError {
+            alert = PatchStoreAlert(
+                titleKey: "common.failed",
+                messageKey: error.localizationKey,
+                messageArgument: error.localizationArgument
+            )
+        } catch {
+            alert = PatchStoreAlert(titleKey: "common.failed", messageKey: "patch.error.apply")
+        }
+        isBusy = false
+    }
+
+    func restoreInstalledItem(_ item: PatchLibraryItem) async {
+        guard !isBusy, let receipt = DevicePatchService.latestReceipt(projectID: item.id) else { return }
+        isBusy = true
+        do {
+            try await Task.detached(priority: .userInitiated) {
+                try DevicePatchService.restore(receipt: receipt, allowChangedTargets: true)
+            }.value
+            alert = PatchStoreAlert(titleKey: "common.done", messageKey: "patch.restored_message")
+        } catch let error as PatchPackageError {
+            alert = PatchStoreAlert(
+                titleKey: "common.failed",
+                messageKey: error.localizationKey,
+                messageArgument: error.localizationArgument
+            )
+        } catch {
+            alert = PatchStoreAlert(titleKey: "common.failed", messageKey: "patch.error.restore")
+        }
+        isBusy = false
+    }
+
     private func finishInitialLoad(_ loadedItems: [PatchLibraryItem]) {
         items = loadedItems
         isBusy = false

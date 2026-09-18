@@ -190,6 +190,29 @@ final class PackageRepositoryStore: ObservableObject {
         }
     }
 
+    func applyExternalPatches(using patchStore: PatchProjectStore) async {
+        await syncPublishedPatches(to: patchStore)
+        await refreshAllAndWait()
+        for record in packages where record.package.kind == .patch && record.package.autoApply {
+            guard let item = patchStore.items.first(where: {
+                $0.origin?.repositoryURL == record.sourceURL
+                    && $0.origin?.packageIdentifier == record.package.identifier
+            }) else { continue }
+            await patchStore.applyInstalledItem(item)
+        }
+    }
+
+    func restoreExternalPatches(using patchStore: PatchProjectStore) async {
+        await refreshAllAndWait()
+        for record in packages where record.package.kind == .patch && record.package.autoApply {
+            guard let item = patchStore.items.first(where: {
+                $0.origin?.repositoryURL == record.sourceURL
+                    && $0.origin?.packageIdentifier == record.package.identifier
+            }) else { continue }
+            await patchStore.restoreInstalledItem(item)
+        }
+    }
+
     private func refreshStoredSources() {
         for source in sources {
             refresh(source)

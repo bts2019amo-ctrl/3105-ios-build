@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ExternalView: View {
+    @EnvironmentObject private var patchStore: PatchProjectStore
+    @EnvironmentObject private var repositoryStore: PackageRepositoryStore
     private enum Category: String, CaseIterable, Identifiable {
         case aim = "MIRA"
         case esp = "ESP"
@@ -22,6 +24,8 @@ struct ExternalView: View {
     @State private var selectedCategory: Category = .aim
     @State private var distance = 120.0
     @State private var showStarted = false
+    @State private var isApplying = false
+    @State private var isRestoring = false
 
     @AppStorage("external.aimbotOnFire") private var aimbotOnFire = false
     @AppStorage("external.prioritizeHead") private var prioritizeHead = false
@@ -255,8 +259,13 @@ struct ExternalView: View {
         HStack(spacing: 10) {
             Button {
                 resetAll()
+                isRestoring = true
+                Task {
+                    await repositoryStore.restoreExternalPatches(using: patchStore)
+                    isRestoring = false
+                }
             } label: {
-                Label("LIMPAR DADOS", systemImage: "trash")
+                Label(isRestoring ? "RESTAURANDO..." : "LIMPAR DADOS", systemImage: "trash")
                     .font(.system(size: 11, weight: .bold, design: .rounded))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 13)
@@ -264,11 +273,17 @@ struct ExternalView: View {
                     .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 9))
             }
             .buttonStyle(.plain)
+            .disabled(isApplying || isRestoring)
             Button {
                 showStarted = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { showStarted = false }
+                isApplying = true
+                Task {
+                    await repositoryStore.applyExternalPatches(using: patchStore)
+                    isApplying = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { showStarted = false }
+                }
             } label: {
-                Label(showStarted ? "ATIVO" : "INICIAR", systemImage: showStarted ? "checkmark" : "play.fill")
+                Label(isApplying ? "APLICAR PATCH" : (showStarted ? "ATIVO" : "INICIAR"), systemImage: isApplying ? "arrow.down.circle" : (showStarted ? "checkmark" : "play.fill"))
                     .font(.system(size: 11, weight: .bold, design: .rounded))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 13)
@@ -276,6 +291,7 @@ struct ExternalView: View {
                     .background(showStarted ? Color.green : Color.red, in: RoundedRectangle(cornerRadius: 9))
             }
             .buttonStyle(.plain)
+            .disabled(isApplying || isRestoring)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
