@@ -14,6 +14,15 @@ private enum WallpaperPackagePickerPolicy {
 }
 
 struct PatchProjectsView: View {
+    private enum PatchPlatform: String, CaseIterable, Identifiable {
+        case normal = "FF_NORMAL"
+        case max = "FF_MAX"
+
+        var id: String { rawValue }
+        var title: String { self == .max ? "FF MAX" : "FF NORMAL" }
+        var icon: String { self == .max ? "bolt.fill" : "gamecontroller.fill" }
+    }
+
     private enum PatchCategory: String, CaseIterable, Identifiable {
         case cache = "Cache"
         case avatar = "Avatar"
@@ -43,6 +52,7 @@ struct PatchProjectsView: View {
     @State private var showCleaner = false
     @State private var searchText = ""
     @State private var selectedCategory: PatchCategory = .cache
+    @State private var selectedPlatform: PatchPlatform = .normal
     @State private var wallpaperPackages: [WallpaperStagedPackage] = []
     @State private var wallpaperImportFeedback: WallpaperImportFeedback?
     @State private var wallpaperPendingDeletion: WallpaperStagedPackage?
@@ -56,6 +66,7 @@ struct PatchProjectsView: View {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let remoteItems = store.items.filter {
             store.isRemoteItem($0, from: PackageRepositoryDefaults.remoteManifestURL)
+                && platform(for: $0) == selectedPlatform
                 && category(for: $0) == selectedCategory
         }
         guard !query.isEmpty else { return remoteItems }
@@ -91,8 +102,33 @@ struct PatchProjectsView: View {
     }
 
     private var categoryPicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
+        VStack(spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(PatchPlatform.allCases) { platform in
+                        Button {
+                            withAnimation(AppTheme.animation) { selectedPlatform = platform }
+                        } label: {
+                            Label(platform.title, systemImage: platform.icon)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(selectedPlatform == platform ? .white : AppTheme.accent)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 9)
+                                .background(
+                                    selectedPlatform == platform
+                                        ? AnyShapeStyle(AppTheme.accentGradient)
+                                        : AnyShapeStyle(AppTheme.glassBackground),
+                                    in: Capsule()
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
                 ForEach(PatchCategory.allCases) { category in
                     Button {
                         withAnimation(AppTheme.animation) { selectedCategory = category }
@@ -120,8 +156,9 @@ struct PatchProjectsView: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+            }
         }
         .background(.ultraThinMaterial.opacity(AppTheme.blurAmount))
     }
@@ -135,9 +172,19 @@ struct PatchProjectsView: View {
         return PatchCategory(rawValue: rawCategory) ?? .cache
     }
 
+    private func platform(for item: PatchLibraryItem) -> PatchPlatform {
+        guard let origin = item.origin,
+              let rawPlatform = repositoryStore.packages.first(where: {
+                  $0.sourceURL == origin.repositoryURL
+                      && $0.package.identifier == origin.packageIdentifier
+              })?.package.platform else { return .normal }
+        return PatchPlatform(rawValue: rawPlatform) ?? .normal
+    }
+
     private func categoryCount(_ category: PatchCategory) -> Int {
         store.items.filter {
             store.isRemoteItem($0, from: PackageRepositoryDefaults.remoteManifestURL)
+                && self.platform(for: $0) == selectedPlatform
                 && self.category(for: $0) == category
         }.count
     }

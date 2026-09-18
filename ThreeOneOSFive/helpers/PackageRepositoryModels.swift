@@ -60,6 +60,7 @@ struct PackageRepositoryPackageDocument: Decodable {
     let summary: String
     let description: String?
     let category: String?
+    let platform: String?
     let tags: [String]?
     let publishedAt: String?
     let icon: String?
@@ -107,6 +108,7 @@ struct RepositoryPackage: Identifiable, Hashable {
     let summary: String
     let details: String?
     let category: String?
+    let platform: String
     let tags: [String]
     let publishedAt: Date?
     let iconURL: URL?
@@ -131,6 +133,7 @@ struct RepositoryPackage: Identifiable, Hashable {
         summary: String,
         details: String?,
         category: String?,
+        platform: String = "FF_NORMAL",
         tags: [String],
         publishedAt: Date?,
         iconURL: URL?,
@@ -154,6 +157,7 @@ struct RepositoryPackage: Identifiable, Hashable {
         self.summary = summary
         self.details = details
         self.category = category
+        self.platform = platform
         self.tags = tags
         self.publishedAt = publishedAt
         self.iconURL = iconURL
@@ -481,6 +485,7 @@ enum PackageRepositoryValidator {
             summary: package.summary.trimmingCharacters(in: .whitespacesAndNewlines),
             details: trimmedOptional(package.description),
             category: trimmedOptional(package.category),
+            platform: package.platform ?? "FF_NORMAL",
             tags: canonicalTags,
             publishedAt: publishedAt,
             iconURL: iconURL,
